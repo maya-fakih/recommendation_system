@@ -1,11 +1,12 @@
 """Sharpness-aware minimization with a plain SGD outer step."""
 
+from collections.abc import Iterator
 from dataclasses import dataclass
 
 import numpy as np
 
 from .model import Parameters
-from .optimizer import CountedObjective, Optimizer
+from .optimizer import CountedObjective, Optimizer, TrainingState, shuffled_batches
 
 
 @dataclass
@@ -50,3 +51,19 @@ class SAM(Optimizer):
             name: block - self.learning_rate * getattr(gradient, name)
             for name, block in vars(params).items()
         })
+
+    def train(
+        self,
+        objective: CountedObjective,
+        initial: Parameters,
+        triplets: np.ndarray,
+        shuffle_rng: np.random.Generator,
+    ) -> Iterator[TrainingState]:
+        params = initial
+        updates = examples_seen = 0
+        for _ in range(self.epochs):
+            for batch in shuffled_batches(triplets, shuffle_rng):
+                params = self._step(objective, params, batch)
+                updates += 1
+                examples_seen += len(batch)
+                yield TrainingState(params, updates, examples_seen / len(triplets))
