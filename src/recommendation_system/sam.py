@@ -4,6 +4,7 @@ from dataclasses import dataclass
 
 import numpy as np
 
+from .model import Parameters
 from .optimizer import Optimizer
 
 
@@ -24,3 +25,14 @@ class SAM(Optimizer):
             raise ValueError("Expected an integer epoch count")
         if self.epochs < 1:
             raise ValueError("Expected at least one epoch")
+
+    def _perturb(self, params: Parameters, gradient: Parameters) -> Parameters:
+        # Normalize all four blocks together to get a single L2 perturbation.
+        norm = np.sqrt(sum(np.vdot(block, block) for block in vars(gradient).values()))
+        if norm == 0 or self.radius == 0:
+            return params
+
+        return Parameters(**{
+            name: block + self.radius * (getattr(gradient, name) / norm)
+            for name, block in vars(params).items()
+        })
