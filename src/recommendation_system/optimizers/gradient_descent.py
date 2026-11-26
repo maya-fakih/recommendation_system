@@ -4,9 +4,7 @@
 import numpy as np
 from time import perf_counter
 from dataclasses import dataclass
-
-# This rate can be changed later
-DEFAULT_TOLERANCE = 1e-6
+from ..constants import DEFAULT_TOLERANCE
 
 @dataclass
 class GDResult:
