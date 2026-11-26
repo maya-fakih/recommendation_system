@@ -5,7 +5,7 @@ from dataclasses import dataclass
 import numpy as np
 
 from .model import Parameters
-from .optimizer import Optimizer
+from .optimizer import CountedObjective, Optimizer
 
 
 @dataclass
@@ -34,5 +34,19 @@ class SAM(Optimizer):
 
         return Parameters(**{
             name: block + self.radius * (getattr(gradient, name) / norm)
+            for name, block in vars(params).items()
+        })
+
+    def _step(
+        self, objective: CountedObjective, params: Parameters, batch: np.ndarray,
+    ) -> Parameters:
+        _, gradient = objective.loss_and_grad(params, batch)
+        perturbed = self._perturb(params, gradient)
+        if perturbed is not params:
+            _, gradient = objective.loss_and_grad(perturbed, batch)
+
+        # Apply the gradient at the perturbed point to the original iterate.
+        return Parameters(**{
+            name: block - self.learning_rate * getattr(gradient, name)
             for name, block in vars(params).items()
         })
