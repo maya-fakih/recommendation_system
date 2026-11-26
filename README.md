@@ -30,8 +30,12 @@ a configured `Optimizer`. Pass its import path to the evaluator. Repeat
 `--optimizer` to compare several methods in the same run.
 
 ```sh
-python evaluate_training.py --optimizer sgd=your_module:make_sgd
+python evaluate_training.py --optimizer sam=recommendation_system.sam:SAM
 ```
+
+SAM defaults to a learning rate of 0.1, an L2 perturbation radius of 0.05, and
+three epochs. To try other settings, supply a factory that returns a configured
+`SAM(learning_rate=..., radius=..., epochs=...)`.
 
 The evaluator writes a JSON history and, when validation selects a checkpoint,
 a NumPy `.npz` with arrays `P`, `Q`, `W`, and `b` under
