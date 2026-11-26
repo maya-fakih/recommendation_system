@@ -83,6 +83,7 @@ def run(
                 raise FloatingPointError("Non-finite accepted parameters")
             if state.diagnostics is not None:
                 diagnostics.append((counted.gradient_work, state.updates, dict(state.diagnostics)))
+            # Probes consume work, but only accepted states are eligible for checkpoints.
             if counted.gradient_work < next_work:
                 continue
             checkpoint_start = perf_counter()
@@ -102,6 +103,7 @@ def run(
             )
             checkpoints.append(snapshot)
             if selected is None or metrics.ndcg_at_10 > selected.validation.ndcg_at_10:
+                # Optimizers may reuse parameter arrays after yielding a state.
                 selected, selected_params = snapshot, deepcopy(params)
             monitoring_seconds += perf_counter() - checkpoint_start
             next_work = (counted.gradient_work // work_interval + 1) * work_interval

@@ -36,6 +36,7 @@ class CountedObjective:
         return loss
 
     def loss_and_grad(self, params: Parameters, triplets: np.ndarray) -> tuple[float, Parameters]:
+        # Charge work before evaluation so failed probes still count.
         self.gradient_work += len(triplets)
         loss, gradient = self._objective.loss_and_grad(params, triplets)
         if not np.isfinite(loss) or any(

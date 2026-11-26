@@ -31,6 +31,7 @@ def load_data(directory: str | Path, *, include_test: bool = False) -> Dataset:
     directory = Path(directory)
     products = sorted(_rows(directory / "products.csv"),
                       key=lambda row: int(row["product_id"]))
+    # Product IDs index text features directly, even when archive rows arrive out of order.
     product_ids = np.array([int(row["product_id"]) for row in products])
     if not np.array_equal(product_ids, np.arange(len(products))):
         raise ValueError("Expected contiguous product IDs starting at zero")
@@ -54,6 +55,7 @@ def load_data(directory: str | Path, *, include_test: bool = False) -> Dataset:
         if int(row["rating"]) >= 4:
             positives[user].add(product)
 
+    # Keep test relevance out of training and validation runs by default.
     relevant = defaultdict(lambda: defaultdict(set))
     for row in _rows(directory / "evaluation.csv"):
         if row["split"] == "test" and not include_test:

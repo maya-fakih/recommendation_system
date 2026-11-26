@@ -15,6 +15,7 @@ from recommendation_system.optimizer import Optimizer, TrainingState, shuffled_b
 class SharedTests(unittest.TestCase):
     def setUp(self):
         self.Z = np.array([[1., 0.], [0., 1.], [1., 1.]])
+        # Swap ordinary factor rows and include a text-only product.
         self.q_index = np.array([1, 0, -1])
         self.model = HybridMatrixFactorization(self.Z, self.q_index)
         self.params = Parameters(
@@ -36,6 +37,7 @@ class SharedTests(unittest.TestCase):
                             scores[1] - scores[0]])
         self.assertAlmostEqual(self.objective.data_loss(self.params, self.triplets),
                                np.logaddexp(0, -margins).mean())
+        # Check every analytic derivative against a centered perturbation.
         eps = 1e-5
         for name, values in vars(self.params).items():
             for index in np.ndindex(values.shape):
@@ -74,6 +76,7 @@ class SharedTests(unittest.TestCase):
                 objective.loss(initial, triplets)
                 objective.loss_and_grad(initial, triplets)
                 yield TrainingState(initial, 1)
+                # Mutate after yielding to check that the checkpoint owns a copy.
                 initial.P[:] = 123
 
         data = Dataset(

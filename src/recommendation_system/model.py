@@ -39,6 +39,7 @@ class HybridMatrixFactorization:
         product_vectors = self.Z[product_ids] @ params.W.T
         interaction_rows = self.q_index[product_ids]
 
+        # Apply interaction terms only to mapped products so -1 never indexes the last row.
         ordinary = interaction_rows >= 0
         ordinary_rows = interaction_rows[ordinary]
         product_vectors[ordinary] += params.Q[ordinary_rows]

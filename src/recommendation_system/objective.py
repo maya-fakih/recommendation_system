@@ -23,6 +23,7 @@ class PairwiseObjective:
         i, j = self.model.q_index[positive], self.model.q_index[comparison]
         if np.any((i < 0) | (j < 0)):
             raise ValueError("Objective triplets must contain ordinary products")
+        # Compute the positive-minus-comparison score directly for each triplet.
         text_difference = self.model.Z[positive] - self.model.Z[comparison]
         product_difference = params.Q[i] - params.Q[j] + text_difference @ params.W.T
         user_vectors = params.P[users]

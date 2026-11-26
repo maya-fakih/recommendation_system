@@ -32,11 +32,13 @@ def evaluate(data: Dataset, task: str, split: str, score: Scorer) -> RankingMetr
     discounts = 1 / np.log2(np.arange(2, 12))
     recall, ndcg = [], []
     for user, targets in relevant.items():
+        # Remove training reviews from the eligible catalog before ranking.
         seen = data.reviewed.get(user, set())
         candidates = catalog[~np.isin(catalog, list(seen))]
         ranking = top_ten(candidates, score(user, candidates))
         hits = np.isin(ranking, list(targets))
         recall.append(hits.sum() / len(targets))
+        # Normalize discounted hits by the best ranking possible for this user.
         ndcg.append(hits @ discounts[:len(hits)] / discounts[:min(10, len(targets))].sum())
     return RankingMetrics(float(np.mean(recall)), float(np.mean(ndcg)), len(relevant))
 
