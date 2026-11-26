@@ -67,3 +67,180 @@ class PairwiseObjective:
         np.add.at(gradients.b, i, weight)
         np.add.at(gradients.b, j, -weight)
         return float(np.logaddexp(0, -margin).mean()) + self.penalty(params), gradients
+
+# We need the Hessian only for the Newtown iterations that we are willing to test for BCD
+    @staticmethod
+    def _curvature(margin: np.ndarray) -> np.ndarray:
+        """Calculate the second derivative of the logistic loss."""
+
+        # rho = 1 / (1 + exp(Delta))
+        rho = np.exp(-np.logaddexp(0, margin))
+
+        # Numerically stable calculation of 1 - rho
+        one_minus_rho = np.exp(-np.logaddexp(0, -margin))
+
+        # omega = rho * (1 - rho)
+        return rho * one_minus_rho
+
+    def hessian_P(
+        self,
+        params: Parameters,
+        triplets: np.ndarray,
+    ) -> np.ndarray:
+        """Calculate the independent Hessian for each customer.
+
+        Q, W and b are fixed.
+        Output shape: (n_users, k, k).
+        """
+
+        (
+            margin,
+            users,
+            _,
+            _,
+            _,
+            product_difference,
+            _,
+        ) = self._batch(params, triplets)
+
+        n_triplets = len(triplets)
+        n_users, k = params.P.shape
+
+        # Logistic curvature divided by N
+        omega = self._curvature(margin) / n_triplets
+
+        # Initialize Hessians with regularization: lambda_f * I
+        hessians = np.zeros((n_users, k, k), dtype=np.float64)
+        hessians[:] = self.lambda_f * np.eye(k)
+
+        # Calculate the Hessian for each customer
+        for u in np.unique(users):
+
+            mask = users == u
+
+            A = product_difference[mask]
+            weights = omega[mask]
+
+            # H_u = sum(omega * a_ij * a_ij^T) / N
+            #       + lambda_f * I
+            hessians[u] += A.T @ (weights[:, None] * A)
+
+        return hessians
+
+    def hessian_vector_P(
+        self,
+        params: Parameters,
+        triplets: np.ndarray,
+        direction: np.ndarray,
+    ) -> np.ndarray:
+        """Calculate H_P @ direction without constructing H_P."""
+
+        if direction.shape != params.P.shape:
+            raise ValueError("Direction must have the same shape as P")
+
+        (
+            margin,
+            users,
+            _,
+            _,
+            _,
+            product_difference,
+            _,
+        ) = self._batch(params, triplets)
+
+        omega = self._curvature(margin) / len(triplets)
+
+        # eta = a_ij^T * v_u
+        eta = np.sum(
+            product_difference * direction[users],
+            axis=1,
+        )
+
+        # Regularization contribution
+        result = self.lambda_f * direction
+
+        # Data-loss contribution
+        contributions = (
+            (omega * eta)[:, None] * product_difference
+        )
+
+        # Accumulate contributions for each customer
+        np.add.at(result, users, contributions)
+
+        return result
+
+    def hessian_vector_QWb(
+        self,
+        params: Parameters,
+        triplets: np.ndarray,
+        direction_Q: np.ndarray,
+        direction_W: np.ndarray,
+        direction_b: np.ndarray,
+    ) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+        """Calculate the joint Hessian-vector product for Q, W, b.
+
+        P is fixed.
+        Mixed derivatives between Q, W and b are included.
+        The full Hessian is not explicitly constructed.
+        """
+
+        if (
+            direction_Q.shape != params.Q.shape
+            or direction_W.shape != params.W.shape
+            or direction_b.shape != params.b.shape
+        ):
+            raise ValueError("Invalid Block 2 direction shapes")
+
+        (
+            margin,
+            _,
+            i,
+            j,
+            user_vectors,
+            _,
+            text_difference,
+        ) = self._batch(params, triplets)
+
+        n_triplets = len(triplets)
+
+        # Logistic curvature divided by N
+        omega = self._curvature(margin) / n_triplets
+
+        # Directional difference in product representations
+        directional_difference = (
+            direction_Q[i]
+            - direction_Q[j]
+            + text_difference @ direction_W.T
+        )
+
+        # eta = h_ij^T * v
+        eta = (
+            np.sum(
+                user_vectors * directional_difference,
+                axis=1,
+            )
+            + direction_b[i]
+            - direction_b[j]
+        )
+
+        # Combined Hessian-vector weight
+        weight = omega * eta
+        weighted_users = weight[:, None] * user_vectors
+
+        # Initialize with regularization contributions
+        Hv_Q = self.lambda_f * direction_Q
+        Hv_W = self.lambda_w * direction_W
+        Hv_b = self.lambda_f * direction_b
+
+        # Hessian-vector contributions for Q
+        np.add.at(Hv_Q, i, weighted_users)
+        np.add.at(Hv_Q, j, -weighted_users)
+
+        # Hessian-vector contributions for W
+        Hv_W += weighted_users.T @ text_difference
+
+        # Hessian-vector contributions for b
+        np.add.at(Hv_b, i, weight)
+        np.add.at(Hv_b, j, -weight)
+
+        return Hv_Q, Hv_W, Hv_b
