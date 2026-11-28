@@ -66,9 +66,21 @@ class SGD(Optimizer):
         )
         params = initial
         updates = processed = rejected = loss_work = 0
+        order = None
+        offset = 0
+        resume = getattr(self, "resume_state", None)
+        if resume is not None:
+            params = resume["params"]
+            updates, processed, rejected, loss_work = resume["counts"]
+            order, offset = resume["order"], resume["offset"]
+            shuffle_rng.bit_generator.state = resume["shuffle"]
+            evaluation_rng.bit_generator.state = resume["evaluation"]
+            objective.gradient_work = processed
         while processed < self.max_gradient_work:
-            order = shuffle_rng.permutation(len(triplets))
-            for start in range(0, len(order), self.batch_size):
+            if order is None:
+                order = shuffle_rng.permutation(len(triplets))
+                offset = 0
+            for start in range(offset, len(order), self.batch_size):
                 batch = triplets[order[start:start + self.batch_size]]
                 if processed + len(batch) > self.max_gradient_work:
                     return
@@ -98,6 +110,12 @@ class SGD(Optimizer):
                     updates += 1
                 # A rejected step retains the last accepted parameters. Report
                 # work even then, so checkpoints and rejection counts remain visible.
+                self.resume_state = {
+                    "params": params, "counts": (updates, processed, rejected, loss_work),
+                    "order": order, "offset": start + len(batch),
+                    "shuffle": shuffle_rng.bit_generator.state,
+                    "evaluation": evaluation_rng.bit_generator.state,
+                }
                 yield TrainingState(params, updates, processed / len(triplets), {
                     "learning_rate": float(alpha or 0),
                     "accepted": float(alpha is not None),
@@ -105,3 +123,5 @@ class SGD(Optimizer):
                     "loss_work": float(loss_work),
                     "search_loss_calls": float(calls),
                 })
+            order = None
+            offset = 0
