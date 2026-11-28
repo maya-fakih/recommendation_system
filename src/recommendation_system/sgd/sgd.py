@@ -41,10 +41,13 @@ class SGD(Optimizer):
     batch_size: int
     max_gradient_work: int
     line_search: LineSearchSettings | None = None
+    gradient_tolerance: float | None = None
 
     def __post_init__(self):
         if not np.isfinite(self.learning_rate) or self.learning_rate <= 0:
             raise ValueError("Expected a positive finite learning rate")
+        if self.gradient_tolerance is not None and (not np.isfinite(self.gradient_tolerance) or self.gradient_tolerance <= 0):
+            raise ValueError("Expected positive finite gradient tolerance")
         if self.batch_size < 1 or self.max_gradient_work < 1:
             raise ValueError("Batch size and work budget must be positive")
 
@@ -76,13 +79,13 @@ class SGD(Optimizer):
             shuffle_rng.bit_generator.state = resume["shuffle"]
             evaluation_rng.bit_generator.state = resume["evaluation"]
             objective.gradient_work = processed
-        while processed < self.max_gradient_work:
+        while objective.gradient_work < self.max_gradient_work:
             if order is None:
                 order = shuffle_rng.permutation(len(triplets))
                 offset = 0
             for start in range(offset, len(order), self.batch_size):
                 batch = triplets[order[start:start + self.batch_size]]
-                if processed + len(batch) > self.max_gradient_work:
+                if objective.gradient_work + len(batch) > self.max_gradient_work:
                     return
                 batch_loss, gradient = objective.loss_and_grad(params, batch)
                 processed += len(batch)
@@ -125,3 +128,12 @@ class SGD(Optimizer):
                 })
             order = None
             offset = 0
+            if self.gradient_tolerance is not None:
+                if objective.gradient_work + len(triplets) > self.max_gradient_work:
+                    return
+                _, full_gradient = objective.loss_and_grad(params, triplets)
+                norm = float(np.sqrt(sum(np.vdot(a, a) for a in vars(full_gradient).values())))
+                self.resume_state = None
+                yield TrainingState(params, updates, processed / len(triplets), {"full_gradient_norm": norm})
+                if norm <= self.gradient_tolerance:
+                    return
