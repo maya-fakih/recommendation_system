@@ -17,3 +17,7 @@ setup_data:
 	unzip -q "$$staging/data.zip" $(DATA_FILES) -d "$$staging"; \
 	mkdir -p data; \
 	for file in $(DATA_FILES); do mv "$$staging/$$file" "$$file"; done
+
+.PHONY: experiments_sgd
+experiments_sgd:
+	$(VENV)/bin/python experiments_sgd.py
