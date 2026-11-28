@@ -1,0 +1,27 @@
+[
+  {
+    "learning_rate": 0.1,
+    "mean_ndcg": 0.08306026048736131,
+    "elapsed_seconds": 193.0937104389959
+  },
+  {
+    "learning_rate": 0.03,
+    "mean_ndcg": 0.08226929314187677,
+    "elapsed_seconds": 249.01867657899857
+  },
+  {
+    "learning_rate": 0.3,
+    "mean_ndcg": 0.08957601701407492,
+    "elapsed_seconds": 242.38413727299485
+  },
+  {
+    "learning_rate": 0.01,
+    "mean_ndcg": 0.0818356181964716,
+    "elapsed_seconds": 235.4720176510018
+  },
+  {
+    "learning_rate": 1.0,
+    "mean_ndcg": 0.12782156913553058,
+    "elapsed_seconds": 258.87481676200696
+  }
+]
