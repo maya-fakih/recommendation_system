@@ -20,5 +20,6 @@ def build_sgd(common: dict, settings: dict) -> SGD:
         learning_rate=settings["learning_rate"],
         batch_size=common["training"]["batch_size"],
         max_gradient_work=settings["max_gradient_work"],
+        gradient_tolerance=settings.get("gradient_tolerance"),
         line_search=LineSearchSettings(**settings["line_search"]),
     )
