@@ -16,16 +16,19 @@ from .optimizer import CountedObjective, Optimizer
 SEEDS = (616, 617, 618)
 
 
-def initialize(data: Dataset, seed: int) -> tuple[Parameters, np.random.Generator]:
+def initialize(data: Dataset, seed: int, model_settings: dict | None = None) -> tuple[Parameters, np.random.Generator]:
     """Give each method the same starting arrays and an independent shuffle stream."""
     init_seed, shuffle_seed = np.random.SeedSequence(seed).spawn(2)
     rng = np.random.default_rng(init_seed)
+    settings = model_settings or {"latent_dim": 32, "init_mean": 0.0, "init_std": 0.01, "bias_init": 0.0}
+    k = settings["latent_dim"]
+    mean, std = settings["init_mean"], settings["init_std"]
     n_products = np.count_nonzero(data.q_index >= 0)
     params = Parameters(
-        rng.normal(0, 0.01, (data.n_users, 32)),
-        rng.normal(0, 0.01, (n_products, 32)),
-        rng.normal(0, 0.01, (32, data.Z.shape[1])),
-        np.zeros(n_products),
+        rng.normal(mean, std, (data.n_users, k)),
+        rng.normal(mean, std, (n_products, k)),
+        rng.normal(mean, std, (k, data.Z.shape[1])),
+        np.full(n_products, settings["bias_init"], dtype=float),
     )
     return params, np.random.default_rng(shuffle_seed)
 
@@ -62,12 +65,13 @@ def run(
     *,
     seed: int,
     work_interval: int,
+    model_settings: dict | None = None,
 ) -> RunResult:
     """Monitor the first accepted state at or after each work threshold."""
     if work_interval < 1:
         raise ValueError("Expected a positive gradient-work interval")
     start = perf_counter()
-    initial, shuffle_rng = initialize(data, seed)
+    initial, shuffle_rng = initialize(data, seed, model_settings)
     counted = CountedObjective(objective)
     checkpoints = []
     diagnostics = []
