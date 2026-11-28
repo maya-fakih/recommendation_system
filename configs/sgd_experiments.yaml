@@ -1,0 +1,5 @@
+regularization:
+  lambda_f: 0.001
+  lambda_w: 0.001
+epochs: 200
+learning_rates: [0.1, 0.03, 0.3, 0.01, 1.0]
