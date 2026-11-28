@@ -23,3 +23,9 @@ experiments_sgd:
 	@test -x $(VENV)/bin/python || { echo 'Missing virtual environment. Run make install first.'; exit 1; }
 	@$(foreach file,$(DATA_FILES),test -s '$(file)' || { echo 'Missing or empty dataset file: $(file)'; exit 1; };)
 	$(VENV)/bin/python -m experiments.sgd.sweep
+
+.PHONY: experiments_sgd_v2
+experiments_sgd_v2:
+	@test -x $(VENV)/bin/python || { echo 'Missing virtual environment. Run make install first.'; exit 1; }
+	@$(foreach file,$(DATA_FILES),test -s '$(file)' || { echo 'Missing or empty dataset file: $(file)'; exit 1; };)
+	$(VENV)/bin/python -m experiments.sgd.sweep --sweep configs/sgd_experiments_v2.yaml --results results/sgd/sweep_v2
