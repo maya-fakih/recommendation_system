@@ -21,5 +21,5 @@ setup_data:
 .PHONY: experiments_sgd
 experiments_sgd:
 	@test -x $(VENV)/bin/python || { echo 'Missing virtual environment. Run make install first.'; exit 1; }
-	@for file in $(DATA_FILES); do if [ ! -s "$file" ]; then echo 'Dataset missing or incomplete. Run make setup_data first.'; exit 1; fi; done
+	@$(foreach file,$(DATA_FILES),test -s '$(file)' || { echo 'Missing or empty dataset file: $(file)'; exit 1; };)
 	$(VENV)/bin/python -m experiments.sgd.sweep
