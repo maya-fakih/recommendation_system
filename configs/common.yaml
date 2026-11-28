@@ -1,0 +1,16 @@
+# Shared experiment settings. Regularization values are provisional.
+model:
+  latent_dim: 32
+  init_mean: 0.0
+  init_std: 0.01
+  bias_init: 0.0
+training:
+  batch_size: 256
+  seeds: [616, 617, 618]
+  drop_last: false
+  work_interval: 1024
+regularization:
+  lambda_f: 0.01
+  lambda_w: 0.01
+evaluation:
+  top_k: 10
